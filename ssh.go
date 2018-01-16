@@ -87,6 +87,7 @@ func dynamicHostKey(db *gorm.DB, host *Host) gossh.HostKeyCallback {
 func channelHandler(srv *ssh.Server, conn *gossh.ServerConn, newChan gossh.NewChannel, ctx ssh.Context) {
 	switch newChan.ChannelType() {
 	case "session":
+	case "direct-tcpip":
 	default:
 		// TODO: handle direct-tcp (only for ssh scheme)
 		if err := newChan.Reject(gossh.UnknownChannelType, "unsupported channel type"); err != nil {
@@ -142,7 +143,7 @@ func channelHandler(srv *ssh.Server, conn *gossh.ServerConn, newChan gossh.NewCh
 				return
 			}
 
-			err = bastionsession.ChannelHandler(srv, conn, newChan, ctx, bastionsession.Config{
+			go bastionsession.ChannelHandler(srv, conn, newChan, ctx, bastionsession.Config{
 				Addr:         host.DialAddr(),
 				ClientConfig: clientConfig,
 				Logs:         logsLocation,
