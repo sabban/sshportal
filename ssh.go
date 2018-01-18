@@ -141,7 +141,7 @@ func channelHandler(srv *ssh.Server, conn *gossh.ServerConn, newChan gossh.NewCh
 				return
 			}
 
-			go bastionsession.ChannelHandler(srv, conn, newChan, ctx, bastionsession.Config{
+			go bastionsession.ChannelHandler(srv, conn, newChan, ctx, bastionsession.Config{ // nolint: errcheck
 				Addr:         host.DialAddr(),
 				ClientConfig: clientConfig,
 				Logs:         actx.config.logsLocation,
