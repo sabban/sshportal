@@ -1,16 +1,19 @@
 package logtunnel
 
 import (
+	"encoding/binary"
 	"io"
-	"net"
-	"log"
+	"syscall"
 	"time"
-	
+
 	"golang.org/x/crypto/ssh"
-	"github.com/google/gopacket"
-	"github.com/google/gopacket/layers"
-	"github.com/google/gopacket/pcapgo"
 )
+
+type logTunnel struct {
+	host    string
+	channel ssh.Channel
+	writer  io.WriteCloser
+}
 
 type ForwardData struct {
 	DestinationHost string
@@ -19,25 +22,21 @@ type ForwardData struct {
 	SourcePort uint32
 }
 
-type logTunnel struct {
-	channel ssh.Channel
-	writer  io.WriteCloser
-	pcapwriter *pcapgo.Writer
-	forwarddata ForwardData
-	destinationHost net.IP
-	sourceHost net.IP
-	destinationPort uint32
-	sourcePort uint32
+func writeHeader(fd io.Writer, length int) {
+	t := time.Now()
+
+	tv := syscall.NsecToTimeval(t.UnixNano())
+
+	binary.Write(fd, binary.LittleEndian, int32(tv.Sec))
+	binary.Write(fd, binary.LittleEndian, int32(tv.Usec))
+	binary.Write(fd, binary.LittleEndian, int32(length))
 }
 
-func New(channel ssh.Channel, writer io.WriteCloser, d ForwardData) *logTunnel {
-	pcapwriter := pcapgo.NewWriter(writer)
-	pcapwriter.WriteFileHeader(65536, layers.LinkTypeIPv4)
+func New(channel ssh.Channel, writer io.WriteCloser, host string) *logTunnel {
 	return &logTunnel{
+		host: host,
 		channel: channel,
 		writer:  writer,
-		pcapwriter: pcapwriter,
-		forwarddata: d,	
 	}
 }
 
@@ -46,56 +45,15 @@ func (l *logTunnel) Read(data []byte) (int, error) {
 }
 
 func (l *logTunnel) Write(data []byte) (int, error) {
-	buf := gopacket.NewSerializeBuffer()
-	opts := gopacket.SerializeOptions{}
-	destinationHost := net.ParseIP(l.forwarddata.DestinationHost)
-	sourceHost := net.ParseIP(l.forwarddata.SourceHost)
-	tcpLayer := &layers.TCP{
-		SrcPort: layers.TCPPort(l.forwarddata.SourcePort),
-		DstPort: layers.TCPPort(l.forwarddata.DestinationPort),
-	}
-	switch {
-	case len(destinationHost) == 4 && len(sourceHost) == 4:
-		ipLayer := &layers.IPv4{
-			SrcIP: sourceHost,
-			DstIP: destinationHost,
-		}
-		gopacket.SerializeLayers(buf, opts,
-			ipLayer,
-			tcpLayer,
-			gopacket.Payload(data))
-		data := buf.Bytes()
-		l.pcapwriter.WritePacket(
-			gopacket.CaptureInfo{
-				Timestamp: time.Now(),
-				CaptureLength: len(data),
-				Length: len(data),
-				InterfaceIndex: 0}, data)
-		
-	case len(destinationHost) == 16 && len(sourceHost) == 16:
-		ipLayer := &layers.IPv6{
-			SrcIP: sourceHost,
-			DstIP: destinationHost,
-		}
-		gopacket.SerializeLayers(buf, opts,
-			ipLayer,
-			tcpLayer,
-			gopacket.Payload(data))
-		data := buf.Bytes()
-		l.pcapwriter.WritePacket(
-			gopacket.CaptureInfo{
-				Timestamp: time.Now(),
-				CaptureLength: len(data),
-				Length: len(data),
-				InterfaceIndex: 0}, data)
-	default:
-		log.Fatalf("Invalid tunnel host")
-	}
-	
+	writeHeader(l.writer, len(data) + len(l.host + ": "))
+	l.writer.Write([]byte(l.host + ": "))
+	l.writer.Write(data)
+
 	return l.channel.Write(data)
 }
 
 func (l *logTunnel) Close() error {
 	l.writer.Close()
+
 	return l.channel.Close()
 }

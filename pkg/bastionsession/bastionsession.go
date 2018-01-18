@@ -14,6 +14,14 @@ import (
 	gossh "golang.org/x/crypto/ssh"
 )
 
+
+type ForwardData struct {
+	DestinationHost string
+	DestinationPort uint32
+	SourceHost string
+	SourcePort uint32
+}
+
 type Config struct {
 	Addr         string
 	Logs         string
@@ -109,14 +117,15 @@ func pipe(lreqs, rreqs <-chan *gossh.Request, lch, rch gossh.Channel, logsLocati
 		if err := gossh.Unmarshal(newChan.ExtraData(), &d); err != nil {
 			return err
 		}
-		wrappedlch := logtunnel.New(lch, f, d)
+		wrappedlch := logtunnel.New(lch, f, d.SourceHost)
+		wrappedrch := logtunnel.New(rch, f, d.DestinationHost)
 		go func() {
 			_, _ = io.Copy(wrappedlch, rch)
 			errch <- errors.New("lch closed the connection")
 		}()
 		
 		go func() {
-			_, _ = io.Copy(rch, lch)
+			_, _ = io.Copy(wrappedrch, lch)
 			errch <- errors.New("rch closed the connection")
 		}()
 	}
