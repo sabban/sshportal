@@ -99,9 +99,9 @@ func pipe(lreqs, rreqs <-chan *gossh.Request, lch, rch gossh.Channel, logsLocati
 		log.Fatalf("error: %v", err)
 	} 
 
+	wrappedlch := logchannel.New(lch, f)
 	log.Printf("Session %v is recorded in %v", channeltype, file_name)
 	if channeltype == "session" {
-		wrappedlch := logchannel.New(lch, f)
 		go func() {
 			_, _ = io.Copy(wrappedlch, rch)
 			errch <- errors.New("lch closed the connection")
@@ -117,15 +117,15 @@ func pipe(lreqs, rreqs <-chan *gossh.Request, lch, rch gossh.Channel, logsLocati
 		if err := gossh.Unmarshal(newChan.ExtraData(), &d); err != nil {
 			return err
 		}
-		wrappedlch := logtunnel.New(lch, f, d.SourceHost)
-		wrappedrch := logtunnel.New(rch, f, d.DestinationHost)
+		directlch := logtunnel.New(lch, f, d.SourceHost)
+		directrch := logtunnel.New(rch, f, d.DestinationHost)
 		go func() {
-			_, _ = io.Copy(wrappedlch, rch)
+			_, _ = io.Copy(directlch, rch)
 			errch <- errors.New("lch closed the connection")
 		}()
 		
 		go func() {
-			_, _ = io.Copy(wrappedrch, lch)
+			_, _ = io.Copy(directrch, lch)
 			errch <- errors.New("rch closed the connection")
 		}()
 	}
@@ -138,6 +138,10 @@ func pipe(lreqs, rreqs <-chan *gossh.Request, lch, rch gossh.Channel, logsLocati
 				return nil
 			}
 			b, err := rch.SendRequest(req.Type, req.WantReply, req.Payload)
+			if req.Type == "exec" {
+				command := append(req.Payload, []byte("\n")...)
+				wrappedlch.LogWrite(command)
+			}
 			if err != nil {
 				return err
 			}

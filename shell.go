@@ -291,7 +291,6 @@ GLOBAL OPTIONS:
 								return err
 							}
 						}
-
 						return tx.Commit().Error
 					},
 				},
@@ -899,7 +898,7 @@ GLOBAL OPTIONS:
 								return err
 							}
 							if err := model.Association("Groups").Append(&appendGroups).Delete(deleteGroups).Error; err != nil {
-								tx.Rollback()
+ 								tx.Rollback()
 								return err
 							}
 						}
