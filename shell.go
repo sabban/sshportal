@@ -271,11 +271,16 @@ GLOBAL OPTIONS:
 								tx.Rollback()
 								return err
 							}
-							if err := model.Association("UserGroups").Append(&appendUserGroups).Delete(deleteUserGroups).Error; err != nil {
-								tx.Rollback()
-								return err
+							if len(deleteUserGroups) == 0 {
+								if err := model.Association("UserGroups").Append(&appendUserGroups).Error; err != nil {
+									tx.Rollback()
+									return err
+								}
+							} else 	if err := model.Association("UserGroups").Append(&appendUserGroups).Delete(deleteUserGroups).Error; err != nil {
+									tx.Rollback()
+									return err
 							}
-
+					
 							var appendHostGroups []HostGroup
 							var deleteHostGroups []HostGroup
 							if err := HostGroupsByIdentifiers(db, c.StringSlice("assign-hostgroup")).Find(&appendHostGroups).Error; err != nil {
@@ -286,10 +291,16 @@ GLOBAL OPTIONS:
 								tx.Rollback()
 								return err
 							}
-							if err := model.Association("HostGroups").Append(&appendHostGroups).Delete(deleteHostGroups).Error; err != nil {
+							if len(deleteHostGroups) == 0 {
+								if err := model.Association("HostGroups").Append(&appendHostGroups).Delete(deleteHostGroups).Error; err != nil {
+								tx.Rollback()
+								return err
+								}
+							} else	if err := model.Association("HostGroups").Append(&appendHostGroups).Delete(deleteHostGroups).Error; err != nil {
 								tx.Rollback()
 								return err
 							}
+
 						}
 						return tx.Commit().Error
 					},
@@ -897,9 +908,15 @@ GLOBAL OPTIONS:
 								tx.Rollback()
 								return err
 							}
-							if err := model.Association("Groups").Append(&appendGroups).Delete(deleteGroups).Error; err != nil {
- 								tx.Rollback()
-								return err
+
+							if len(deleteGroups) == 0 {
+								if err := model.Association("Groups").Append(&appendGroups).Error; err != nil {
+									tx.Rollback()
+									return err
+								}
+							} else if err := model.Association("Groups").Append(&appendGroups).Delete(deleteGroups).Error; err != nil {
+									tx.Rollback()
+									return err
 							}
 						}
 
