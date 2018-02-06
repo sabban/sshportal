@@ -276,11 +276,11 @@ GLOBAL OPTIONS:
 									tx.Rollback()
 									return err
 								}
-							} else 	if err := model.Association("UserGroups").Append(&appendUserGroups).Delete(deleteUserGroups).Error; err != nil {
-									tx.Rollback()
-									return err
+							} else if err := model.Association("UserGroups").Append(&appendUserGroups).Delete(deleteUserGroups).Error; err != nil {
+								tx.Rollback()
+								return err
 							}
-					
+
 							var appendHostGroups []HostGroup
 							var deleteHostGroups []HostGroup
 							if err := HostGroupsByIdentifiers(db, c.StringSlice("assign-hostgroup")).Find(&appendHostGroups).Error; err != nil {
@@ -293,10 +293,10 @@ GLOBAL OPTIONS:
 							}
 							if len(deleteHostGroups) == 0 {
 								if err := model.Association("HostGroups").Append(&appendHostGroups).Delete(deleteHostGroups).Error; err != nil {
-								tx.Rollback()
-								return err
+									tx.Rollback()
+									return err
 								}
-							} else	if err := model.Association("HostGroups").Append(&appendHostGroups).Delete(deleteHostGroups).Error; err != nil {
+							} else if err := model.Association("HostGroups").Append(&appendHostGroups).Delete(deleteHostGroups).Error; err != nil {
 								tx.Rollback()
 								return err
 							}
@@ -915,8 +915,8 @@ GLOBAL OPTIONS:
 									return err
 								}
 							} else if err := model.Association("Groups").Append(&appendGroups).Delete(deleteGroups).Error; err != nil {
-									tx.Rollback()
-									return err
+								tx.Rollback()
+								return err
 							}
 						}
 
