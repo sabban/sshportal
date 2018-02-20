@@ -59,7 +59,7 @@ func dbInit(db *gorm.DB) error {
 				type Host struct {
 					// FIXME: use uuid for ID
 					gorm.Model
-					Name        string `gorm:"size:32"`
+					Name        string `gorm:"size:64"`
 					Addr        string
 					User        string
 					Password    string
@@ -215,7 +215,7 @@ func dbInit(db *gorm.DB) error {
 			Migrate: func(tx *gorm.DB) error {
 				type UserRole struct {
 					gorm.Model
-					Name  string  `valid:"required,length(1|32),unix_user"`
+					Name  string  `valid:"required,length(1|64),unix_user"`
 					Users []*User `gorm:"many2many:user_user_roles"`
 				}
 				return tx.AutoMigrate(&UserRole{}).Error
@@ -231,7 +231,7 @@ func dbInit(db *gorm.DB) error {
 					IsAdmin     bool
 					Roles       []*UserRole  `gorm:"many2many:user_user_roles"`
 					Email       string       `valid:"required,email"`
-					Name        string       `valid:"required,length(1|32),unix_user"`
+					Name        string       `valid:"required,length(1|64),unix_user"`
 					Keys        []*UserKey   `gorm:"ForeignKey:UserID"`
 					Groups      []*UserGroup `gorm:"many2many:user_user_groups;"`
 					Comment     string       `valid:"optional"`
@@ -281,7 +281,7 @@ func dbInit(db *gorm.DB) error {
 					gorm.Model
 					Roles       []*UserRole  `gorm:"many2many:user_user_roles"`
 					Email       string       `valid:"required,email"`
-					Name        string       `valid:"required,length(1|32),unix_user"`
+					Name        string       `valid:"required,length(1|64),unix_user"`
 					Keys        []*UserKey   `gorm:"ForeignKey:UserID"`
 					Groups      []*UserGroup `gorm:"many2many:user_user_groups;"`
 					Comment     string       `valid:"optional"`
@@ -381,7 +381,7 @@ func dbInit(db *gorm.DB) error {
 				type Host struct {
 					// FIXME: use uuid for ID
 					gorm.Model
-					Name        string       `gorm:"size:32" valid:"required,length(1|32),unix_user"`
+					Name        string       `gorm:"size:64" valid:"required,length(1|64),unix_user"`
 					Addr        string       `valid:"required"`
 					User        string       `valid:"optional"`
 					Password    string       `valid:"optional"`
@@ -442,7 +442,7 @@ func dbInit(db *gorm.DB) error {
 				type Host struct {
 					// FIXME: use uuid for ID
 					gorm.Model
-					Name     string `gorm:"size:32"`
+					Name     string `gorm:"size:64"`
 					Addr     string
 					User     string
 					Password string
