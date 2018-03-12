@@ -3,14 +3,17 @@ package bastionsession
 import (
 	"errors"
 	"io"
+	"log"
+	"os"
 	"strings"
 	"time"
-	"os"
-	"log"
-	
-	"github.com/gliderlabs/ssh"
+
 	"github.com/arkan/bastion/pkg/logchannel"
+<<<<<<< HEAD
 	"github.com/moul/sshportal/pkg/logtunnel"
+=======
+	"github.com/gliderlabs/ssh"
+>>>>>>> ec1e4d5c8a708c3535144cfdf14507dedd383e86
 	gossh "golang.org/x/crypto/ssh"
 )
 
@@ -28,7 +31,7 @@ type Config struct {
 	ClientConfig *gossh.ClientConfig
 }
 
-func ChannelHandler(srv *ssh.Server, conn *gossh.ServerConn, newChan gossh.NewChannel, ctx ssh.Context, config Config) error {
+func MultiChannelHandler(srv *ssh.Server, conn *gossh.ServerConn, newChan gossh.NewChannel, ctx ssh.Context, configs []Config) error {
 	switch newChan.ChannelType() {
 	case "session" :
 		lch, lreqs, err := newChan.Accept()
@@ -38,19 +41,38 @@ func ChannelHandler(srv *ssh.Server, conn *gossh.ServerConn, newChan gossh.NewCh
 			return nil
 		}
 		
-		// open client channel
-		rconn, err := gossh.Dial("tcp", config.Addr, config.ClientConfig)
+
+		var lastClient *gossh.Client
+
+		// go through all the hops
+		for _, config := range configs {
+			var client *gossh.Client
+			if lastClient == nil {
+				client, err = gossh.Dial("tcp", config.Addr, config.ClientConfig)
+			} else {
+				rconn, err := lastClient.Dial("tcp", config.Addr)
+				if err != nil {
+					return err
+				}
+				ncc, chans, reqs, err := gossh.NewClientConn(rconn, config.Addr, config.ClientConfig)
+				if err != nil {
+					return err
+				}
+				client = gossh.NewClient(ncc, chans, reqs)
+			}
+			if err != nil {
+				return err
+			}
+			defer func() { _ = client.Close() }()
+			lastClient = client
+		}
+		rch, rreqs, err := lastClient.OpenChannel("session", []byte{})
 		if err != nil {
 			return err
 		}
-		defer func() { _ = rconn.Close() }()
-		rch, rreqs, err := rconn.OpenChannel("session", []byte{})
-		if err != nil {
-			return err
-		}
-		user := conn.User()
-		// pipe everything
-		return pipe(lreqs, rreqs, lch, rch, config.Logs, user, newChan)
+	user := conn.User()
+	// pipe everything
+	return pipe(lreqs, rreqs, lch, rch, configs[len(configs)-1].Logs, user)
 	case "direct-tcpip":
 		lch, lreqs, err := newChan.Accept()
 		// TODO: defer clean closer
@@ -80,7 +102,6 @@ func ChannelHandler(srv *ssh.Server, conn *gossh.ServerConn, newChan gossh.NewCh
 		newChan.Reject(gossh.UnknownChannelType, "unsupported channel type")
 		return nil
 	}
-}
 
 func pipe(lreqs, rreqs <-chan *gossh.Request, lch, rch gossh.Channel, logsLocation string, user string, newChan gossh.NewChannel) error {
 	defer func() {
@@ -97,7 +118,7 @@ func pipe(lreqs, rreqs <-chan *gossh.Request, lch, rch gossh.Channel, logsLocati
 
 	if err != nil {
 		log.Fatalf("error: %v", err)
-	} 
+	}
 
 	log.Printf("Session %v is recorded in %v", channeltype, file_name)
 	if channeltype == "session" {
